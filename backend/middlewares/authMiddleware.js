@@ -4,7 +4,11 @@ import User from '../models/User.js';
 export const protect = async (req, res, next) => {
     let token;
 
-    token = req.cookies.jwt;
+    if (req.cookies && req.cookies.jwt) {
+        token = req.cookies.jwt;
+    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
 
     if (token) {
         try {
@@ -12,17 +16,33 @@ export const protect = async (req, res, next) => {
             const user = await User.findById(decoded.userId).select('-password');
             if (!user) {
                 res.status(401);
-                throw new Error('Not authorized, user not found');
+                res.clearCookie('jwt', {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV !== 'development',
+                    sameSite: 'lax',
+                });
+                return next(new Error('User account not found. Please log in again.'));
             }
             req.user = user;
-            next();
+            return next();
         } catch (error) {
             res.status(401);
-            next(new Error('Not authorized, token failed'));
+            res.clearCookie('jwt', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV !== 'development',
+                sameSite: 'lax',
+            });
+            if (error.name === 'TokenExpiredError') {
+                return next(new Error('Session expired. Please log in again.'));
+            }
+            if (error.name === 'JsonWebTokenError') {
+                return next(new Error('Invalid authorization token. Please log in again.'));
+            }
+            return next(new Error(error.message || 'Not authorized, token failed'));
         }
     } else {
         res.status(401);
-        next(new Error('Not authorized, no token'));
+        return next(new Error('Not authorized, please log in'));
     }
 };
 

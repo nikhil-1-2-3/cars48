@@ -2,14 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies first for better caching
+# Copy dependency definitions and Prisma schema for efficient caching
 COPY package*.json ./
-RUN npm install --production
+COPY prisma ./prisma/
+RUN npm install
 
-# Copy the rest of the backend source code
+# Copy backend source code
 COPY . .
 
-# Expose the port the API runs on
+# Ensure Prisma Client is generated
+RUN npx prisma generate
+
+# Expose the API port
 EXPOSE 5000
 
 # Start the Node.js server

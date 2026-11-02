@@ -21,15 +21,27 @@ const sendOTP = async (user) => {
     console.log(`🔐 DEVELOPMENT OTP FOR ${user.email}: ${otp}`);
     console.log(`========================================\n`);
 
+    let emailResult = null;
     try {
-        await sendEmail({
+        emailResult = await sendEmail({
             email: user.email,
             subject: 'FleetFlow - Your Verification Code',
             message: `Your verification code is: ${otp}. It will expire in 10 minutes.`,
+            html: `
+                <div style="font-family: Arial, sans-serif; background: #09090b; color: #ffffff; padding: 40px; border-radius: 12px; max-width: 500px; margin: auto;">
+                    <h2 style="letter-spacing: 2px; text-transform: uppercase; color: #ffffff;">FleetFlow Verification</h2>
+                    <p style="color: #a1a1aa; font-size: 14px;">Your 6-digit authorization code is below:</p>
+                    <div style="background: #18181b; border: 1px solid #27272a; padding: 20px; text-align: center; border-radius: 8px; margin: 24px 0;">
+                        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #10b981;">${otp}</span>
+                    </div>
+                    <p style="color: #71717a; font-size: 12px;">This code will expire in 10 minutes. If you did not request this, please disregard this email.</p>
+                </div>
+            `,
         });
     } catch (error) {
         console.error('Email could not be sent. Please use the console OTP.', error);
     }
+    return emailResult;
 };
 
 // @desc    Register a new user
@@ -55,12 +67,13 @@ export const registerUser = async (req, res, next) => {
         });
 
         if (user) {
-            await sendOTP(user);
+            const emailResult = await sendOTP(user);
             res.status(201).json({
                 message: 'Registration successful. OTP sent to email.',
                 email: user.email,
                 requiresOTP: true,
-                devOTP: process.env.NODE_ENV !== 'production' ? user.otp : undefined
+                devOTP: user.otp,
+                emailPreviewUrl: emailResult?.previewUrl || null,
             });
         } else {
             res.status(400);
@@ -82,21 +95,23 @@ export const loginUser = async (req, res, next) => {
 
         if (user && (await user.matchPassword(password))) {
             if (!user.isVerified) {
-                await sendOTP(user);
+                const emailResult = await sendOTP(user);
                 return res.status(200).json({
                     message: 'Account not verified. OTP sent to email.',
                     email: user.email,
                     requiresOTP: true,
-                    devOTP: process.env.NODE_ENV !== 'production' ? user.otp : undefined
+                    devOTP: user.otp,
+                    emailPreviewUrl: emailResult?.previewUrl || null,
                 });
             }
 
-            generateToken(res, user._id);
+            const token = generateToken(res, user._id);
             res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                token,
             });
         } else {
             res.status(401);
@@ -131,12 +146,13 @@ export const verifyOTP = async (req, res, next) => {
         user.otpExpires = undefined;
         await user.save();
 
-        generateToken(res, user._id);
+        const token = generateToken(res, user._id);
         res.json({
             _id: user._id,
             name: user.name,
             email: user.email,
             role: user.role,
+            token,
         });
     } catch (error) {
         next(error);
@@ -176,12 +192,13 @@ export const googleLogin = async (req, res, next) => {
                 user.googleId = googleId;
                 await user.save();
             }
-            generateToken(res, user._id);
+            const token = generateToken(res, user._id);
             res.json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                token,
             });
         } else {
             // Create new user
@@ -191,12 +208,13 @@ export const googleLogin = async (req, res, next) => {
                 googleId,
                 role: 'customer' // default role
             });
-            generateToken(res, user._id);
+            const token = generateToken(res, user._id);
             res.status(201).json({
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                token,
             });
         }
     } catch (error) {
@@ -283,7 +301,7 @@ export const requestPasswordChange = async (req, res, next) => {
             res.status(200).json({
                 message: 'OTP sent to your email',
                 email: user.email,
-                devOTP: process.env.NODE_ENV !== 'production' ? user.otp : undefined
+                devOTP: user.otp
             });
         } else {
             res.status(404);

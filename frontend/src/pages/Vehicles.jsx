@@ -69,9 +69,12 @@ const Vehicles = () => {
         if (!startDate || !endDate) return alert("Please select dates");
         const total = calculateTotal();
         
+        const branchId = selectedVehicle.branchId?._id || selectedVehicle.branchId?.id || selectedVehicle.branchId;
+        const vehicleId = selectedVehicle._id || selectedVehicle.id;
+
         const result = await createBooking({
-            vehicleId: selectedVehicle._id,
-            branchId: selectedVehicle.branchId._id,
+            vehicleId,
+            branchId,
             startDate,
             endDate,
             totalAmount: total,
@@ -87,6 +90,26 @@ const Vehicles = () => {
                     bookingId: booking._id,
                     type: 'Booking'
                 });
+
+                // If running in Mock Mode or without real Razorpay keys, simulate successful test payment
+                if (!window.Razorpay || key === 'mockedkey' || !key.startsWith('rzp_') || (order.id && order.id.startsWith('order_mock_'))) {
+                    const simulated = window.confirm(
+                        `💳 [Razorpay Test Sandbox]\n\nVehicle: ${selectedVehicle.brand} ${selectedVehicle.model}\nAmount: ₹${total}\n\nClick OK to simulate Successful Payment.`
+                    );
+                    if (simulated) {
+                        await api.post('/payments/verify', {
+                            razorpay_order_id: order.id,
+                            razorpay_payment_id: `pay_mock_${Date.now()}`,
+                            razorpay_signature: 'mock_signature'
+                        });
+                        
+                        setBookingSuccess(true);
+                        setTimeout(() => {
+                            setSelectedVehicle(null);
+                        }, 2000);
+                    }
+                    return;
+                }
 
                 const options = {
                     key: key, 
@@ -127,10 +150,14 @@ const Vehicles = () => {
                 });
                 rzp.open();
             } catch (err) {
-                alert("Failed to initiate payment. Please try again.");
+                alert("Failed to initiate payment. Please try again: " + (err.message || err));
             }
         } else {
-            alert(result?.error || 'Failed to create booking');
+            const errMsg = result?.error || 'Failed to create booking';
+            alert(errMsg);
+            if (errMsg.toLowerCase().includes('not authorized') || errMsg.toLowerCase().includes('log in') || errMsg.toLowerCase().includes('token') || errMsg.toLowerCase().includes('session')) {
+                navigate('/login');
+            }
         }
     };
 

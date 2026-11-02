@@ -1,0 +1,176 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                  String         @id @default(uuid())
+  name                String
+  email               String         @unique
+  password            String?
+  googleId            String?
+  role                String         @default("customer")
+  phone               String?
+  licenseUrl          String?
+  branchId            String?
+  isVerified          Boolean        @default(false)
+  verificationToken   String?
+  otp                 String?
+  otpExpires          DateTime?
+  resetPasswordToken  String?
+  resetPasswordExpire DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  branch              Branch?        @relation("UserAssignedBranch", fields: [branchId], references: [id])
+  managedBranches     Branch[]       @relation("BranchManager")
+  bookings            Booking[]
+  payments            Payment[]
+  reviews             Review[]
+  handledPickups      RentalRecord[] @relation("PickupHandler")
+  handledReturns      RentalRecord[] @relation("ReturnHandler")
+}
+
+model Branch {
+  id          String    @id @default(uuid())
+  name        String
+  location    Json      @default("{}")
+  managerId   String?
+  contactInfo Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  manager     User?     @relation("BranchManager", fields: [managerId], references: [id])
+  users       User[]    @relation("UserAssignedBranch")
+  vehicles    Vehicle[]
+  bookings    Booking[]
+}
+
+model Vehicle {
+  id                 String        @id @default(uuid())
+  brand              String
+  model              String
+  type               String        @default("Car")
+  category           String?
+  registrationNumber String        @unique
+  fuelType           String
+  transmission       String
+  seats              Int           @default(4)
+  mileage            Float         @default(15)
+  features           String[]      @default([])
+  pricePerDay        Float
+  pricePerHour       Float         @default(0)
+  extraHourCharge    Float         @default(0)
+  depositAmount      Float
+  branchId           String
+  images             String[]      @default([])
+  status             String        @default("Available")
+  currentOdometer    Float         @default(0)
+  averageRating      Float         @default(0)
+  numReviews         Int           @default(0)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  branch             Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  bookings           Booking[]
+  maintenance        Maintenance[]
+  reviews            Review[]
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  customerId    String
+  vehicleId     String
+  branchId      String
+  startDate     DateTime
+  endDate       DateTime
+  totalAmount   Float
+  depositAmount Float
+  status        String        @default("Pending")
+  paymentId     String?
+  isPaid        Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  customer      User          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  payments      Payment[]
+  rentalRecord  RentalRecord?
+  reviews       Review[]
+}
+
+model Payment {
+  id                String   @id @default(uuid())
+  bookingId         String
+  userId            String
+  amount            Float
+  type              String
+  providerPaymentId String?
+  providerOrderId   String?
+  status            String   @default("Pending")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Maintenance {
+  id            String   @id @default(uuid())
+  vehicleId     String
+  serviceDate   DateTime
+  cost          Float
+  description   String
+  serviceCenter String?
+  notes         String?
+  status        String   @default("Scheduled")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  vehicle       Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model RentalRecord {
+  id                  String    @id @default(uuid())
+  bookingId           String    @unique
+  pickupDate          DateTime?
+  pickupOdometer      Float?
+  pickupFuelLevel     String?
+  pickupConditionNotes String?
+  pickupHandledById   String?
+  returnDate          DateTime?
+  returnOdometer      Float?
+  returnFuelLevel     String?
+  returnConditionNotes String?
+  returnDamageCharges Float     @default(0)
+  returnLateCharges   Float     @default(0)
+  returnHandledById   String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  pickupHandledBy     User?     @relation("PickupHandler", fields: [pickupHandledById], references: [id])
+  returnHandledBy     User?     @relation("ReturnHandler", fields: [returnHandledById], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  vehicleId String
+  bookingId String
+  rating    Float
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, userId])
+}

@@ -5,7 +5,10 @@ metadata:
   labels:
     app: renthere-frontend
 spec:
-  replicas: 2
+  # NOTE: Frontend is deployed on Vercel.
+  # This manifest is kept for internal staging / fallback only.
+  # In production, the frontend container is not needed in k8s.
+  replicas: 1
   selector:
     matchLabels:
       app: renthere-frontend
@@ -20,6 +23,9 @@ spec:
         ports:
         - containerPort: 80
         resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
           limits:
             memory: "128Mi"
-            cpu: "500m"
+            cpu: "250m"

@@ -19,10 +19,30 @@ spec:
         image: singhnikhil212/renthere-backend:latest
         ports:
         - containerPort: 5000
+        # All env vars injected from the renthere-secrets Secret
+        # Create it once with: kubectl apply -f k8s/secret.yaml
         envFrom:
         - secretRef:
             name: renthere-secrets
         resources:
-          limits:
+          requests:
             memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
             cpu: "500m"
+        # Liveness: restart if the process hangs
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          failureThreshold: 3
+        # Readiness: only send traffic once the app is ready
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10

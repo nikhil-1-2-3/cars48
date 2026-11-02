@@ -5,6 +5,8 @@ const useAuthStore = create((set) => ({
     user: JSON.parse(localStorage.getItem('userInfo')) || null,
     requiresOTP: false,
     otpEmail: null,
+    devOTP: null,
+    emailPreviewUrl: null,
     isLoading: false,
     error: null,
 
@@ -13,11 +15,11 @@ const useAuthStore = create((set) => ({
         try {
             const { data } = await api.post('/auth/login', { email, password });
             if (data.requiresOTP) {
-                if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ₹{data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
-                set({ requiresOTP: true, otpEmail: data.email, isLoading: false });
+                if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ${data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
+                set({ requiresOTP: true, otpEmail: data.email, devOTP: data.devOTP, emailPreviewUrl: data.emailPreviewUrl, isLoading: false });
             } else {
                 localStorage.setItem('userInfo', JSON.stringify(data));
-                set({ user: data, isLoading: false, requiresOTP: false, otpEmail: null });
+                set({ user: data, isLoading: false, requiresOTP: false, otpEmail: null, devOTP: null, emailPreviewUrl: null });
             }
         } catch (error) {
             set({ error: error.message, isLoading: false });
@@ -29,11 +31,11 @@ const useAuthStore = create((set) => ({
         try {
             const { data } = await api.post('/auth/register', userData);
             if (data.requiresOTP) {
-                if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ₹{data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
-                set({ requiresOTP: true, otpEmail: data.email, isLoading: false });
+                if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ${data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
+                set({ requiresOTP: true, otpEmail: data.email, devOTP: data.devOTP, emailPreviewUrl: data.emailPreviewUrl, isLoading: false });
             } else {
                 localStorage.setItem('userInfo', JSON.stringify(data));
-                set({ user: data, isLoading: false, requiresOTP: false, otpEmail: null });
+                set({ user: data, isLoading: false, requiresOTP: false, otpEmail: null, devOTP: null, emailPreviewUrl: null });
             }
         } catch (error) {
             set({ error: error.message, isLoading: false });
@@ -85,9 +87,9 @@ const useAuthStore = create((set) => ({
         set({ isLoading: true, error: null });
         try {
             const { data } = await api.post('/auth/profile/request-password-change');
-            if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ₹{data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
-            set({ isLoading: false });
-            return { success: true, message: data.message };
+            if (data.devOTP) console.log(`%c 🔐 DEVELOPMENT OTP: ${data.devOTP} `, 'background: #222; color: #bada55; font-size: 16px;');
+            set({ isLoading: false, devOTP: data.devOTP });
+            return { success: true, message: data.message, devOTP: data.devOTP };
         } catch (error) {
             const errorMsg = error.response?.data?.message || error.message;
             set({ error: errorMsg, isLoading: false });

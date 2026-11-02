@@ -1,0 +1,10 @@
+aws_region    = "ap-south-1"
+environment   = "prod"
+
+ec2_key_pair_name = "renthere-key"
+
+# Only your IP can SSH in and access the server
+your_ip_cidr = "YOUR_PUBLIC_IP/32"
+
+# RDS master password (no special chars: /, @, #, ", space not allowed by RDS)
+db_password = "YourStrongPassword123"

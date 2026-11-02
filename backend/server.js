@@ -21,19 +21,34 @@ connectDB();
 
 const app = express();
 
+// ─────────────────────────────────────────────────────────────
+// CORS — allow the Vercel frontend domain (set FRONTEND_URL in
+// the k8s Secret / .env). Falls back to permissive in development.
+// ─────────────────────────────────────────────────────────────
+const allowedOrigins = process.env.FRONTEND_URL
+    ? [process.env.FRONTEND_URL, 'http://localhost:5174']
+    : true; // allow all origins in development
+
 // Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:9090'], 
+    origin: allowedOrigins,
     credentials: true,
 }));
 app.use(helmet());
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Static folder for local uploads
 app.use('/uploads', express.static('uploads'));
+
+// ─────────────────────────────────────────────────────────────
+// Health check — used by Kubernetes liveness / readiness probes
+// ─────────────────────────────────────────────────────────────
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
 
 // Basic route
 app.get('/', (req, res) => {

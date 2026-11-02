@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: renthere-db-migrate
+spec:
+  # Retry up to 3 times on failure
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: migrate
+        image: singhnikhil212/renthere-backend:latest
+        command: ["sh", "-c", "npx prisma db push && node seed.js"]
+        envFrom:
+        - secretRef:
+            name: renthere-secrets
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "250m"

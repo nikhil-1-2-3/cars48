@@ -1,0 +1,20 @@
+# Terraform state — contains secrets, never commit
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+
+# tfvars contains real passwords — never commit
+terraform.tfvars
+*.auto.tfvars
+
+# crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

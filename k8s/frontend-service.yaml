@@ -3,7 +3,8 @@ kind: Service
 metadata:
   name: renthere-frontend-service
 spec:
-  type: LoadBalancer # Exposes to the internet
+  # Staging only — Vercel is the production frontend host.
+  type: LoadBalancer
   selector:
     app: renthere-frontend
   ports:

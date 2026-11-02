@@ -1,3 +1,15 @@
 node_modules/
 .history/
 .env
+
+# Kubernetes secret file — contains real credentials, never commit
+k8s/secret.yaml
+
+# Terraform state & secrets
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+*.pem
+.env*
+!backend/.env.example

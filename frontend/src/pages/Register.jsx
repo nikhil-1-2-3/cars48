@@ -10,7 +10,13 @@ const Register = () => {
     const [otp, setOtp] = useState('');
     const navigate = useNavigate();
     
-    const { register, verifyOTP, requiresOTP, otpEmail, user, isLoading, error, clearError } = useAuthStore();
+    const { register, verifyOTP, requiresOTP, otpEmail, devOTP, emailPreviewUrl, user, isLoading, error, clearError } = useAuthStore();
+
+    useEffect(() => {
+        if (devOTP) {
+            setOtp(devOTP);
+        }
+    }, [devOTP]);
 
     useEffect(() => {
         if (user) {
@@ -42,6 +48,29 @@ const Register = () => {
                             Authorization code sent to <br /><span className="text-white mt-1 block">{otpEmail}</span>
                         </p>
                     </div>
+
+                    {emailPreviewUrl && (
+                        <a 
+                            href={emailPreviewUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block text-center bg-blue-500/10 border border-blue-500/30 p-3 rounded-xl text-blue-400 text-xs font-bold uppercase tracking-wider hover:bg-blue-500/20 transition-all"
+                        >
+                            📬 View Sent Email in Web Inbox &rarr;
+                        </a>
+                    )}
+
+                    {devOTP && (
+                        <div 
+                            onClick={() => setOtp(devOTP)}
+                            className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl text-center cursor-pointer hover:bg-emerald-500/20 transition-all group"
+                        >
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 font-bold block">Development Verification Code</span>
+                            <span className="text-2xl font-mono font-black text-white tracking-[0.3em] block mt-1 group-hover:scale-105 transition-transform">{devOTP}</span>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest block mt-1 underline">Click to auto-fill</span>
+                        </div>
+                    )}
+
                     {error && <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-lg text-xs font-bold uppercase tracking-widest text-center">{error}</div>}
                     <form className="mt-8 space-y-6" onSubmit={handleVerifyOtp}>
                         <div>

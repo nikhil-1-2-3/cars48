@@ -1,65 +1,120 @@
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import prisma from '../config/prisma.js';
+import { attachId, createQueryWrapper } from './modelUtils.js';
 
-const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-    },
-    password: {
-        type: String,
-    },
-    googleId: {
-        type: String,
-    },
-    role: {
-        type: String,
-        enum: ['customer', 'manager', 'admin'],
-        default: 'customer',
-    },
-    phone: {
-        type: String,
-    },
-    licenseUrl: {
-        type: String,
-    },
-    branchId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Branch',
-    },
-    isVerified: {
-        type: Boolean,
-        default: false,
-    },
-    verificationToken: String,
-    otp: String,
-    otpExpires: Date,
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
-}, {
-    timestamps: true
-});
+function toDateOrNull(val) {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+}
 
-// Password hashing middleware
-userSchema.pre('save', async function () {
-    if (!this.isModified('password') || !this.password) {
-        return;
+class UserModelInstance {
+    constructor(data = {}) {
+        Object.assign(this, data);
+        if (this.id && !this._id) {
+            this._id = this.id;
+        }
     }
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-});
 
-// Match user entered password to hashed password in database
-userSchema.methods.matchPassword = async function (enteredPassword) {
-    if (!this.password) return false;
-    return await bcrypt.compare(enteredPassword, this.password);
+    async matchPassword(enteredPassword) {
+        if (!this.password) return false;
+        return await bcrypt.compare(enteredPassword, this.password);
+    }
+
+    async save() {
+        // If password is plain text (not starting with $2a$ or $2b$), hash it
+        if (this.password && !this.password.startsWith('$2a$') && !this.password.startsWith('$2b$')) {
+            const salt = await bcrypt.genSalt(10);
+            this.password = await bcrypt.hash(this.password, salt);
+        }
+
+        const dataToSave = {
+            name: this.name,
+            email: this.email,
+            password: this.password,
+            googleId: this.googleId || null,
+            role: this.role || 'customer',
+            phone: this.phone || null,
+            licenseUrl: this.licenseUrl || null,
+            branchId: this.branchId || null,
+            isVerified: this.isVerified ?? false,
+            verificationToken: this.verificationToken || null,
+            otp: this.otp || null,
+            otpExpires: toDateOrNull(this.otpExpires),
+            resetPasswordToken: this.resetPasswordToken || null,
+            resetPasswordExpire: toDateOrNull(this.resetPasswordExpire),
+        };
+
+        if (this.id || this._id) {
+            const id = (this.id || this._id).toString();
+            const updated = await prisma.user.update({
+                where: { id },
+                data: dataToSave,
+            });
+            Object.assign(this, updated);
+            this._id = this.id;
+            return this;
+        } else {
+            const created = await prisma.user.create({
+                data: dataToSave,
+            });
+            Object.assign(this, created);
+            this._id = this.id;
+            return this;
+        }
+    }
+
+    async deleteOne() {
+        const id = this.id || this._id;
+        if (id) {
+            await prisma.user.delete({ where: { id: id.toString() } });
+        }
+    }
+}
+
+const User = function(data) {
+    return new UserModelInstance(data);
 };
 
-const User = mongoose.model('User', userSchema);
+User.create = async function(data) {
+    const instance = new UserModelInstance(data);
+    return await instance.save();
+};
+
+User.findOne = async function(filter = {}) {
+    let where = {};
+    if (filter.email) where.email = filter.email;
+    if (filter.googleId) where.googleId = filter.googleId;
+    if (filter.id || filter._id) where.id = (filter.id || filter._id).toString();
+
+    const user = await prisma.user.findFirst({ where });
+    if (!user) return null;
+    return new UserModelInstance(user);
+};
+
+User.findById = function(id) {
+    return createQueryWrapper(async ({ selectVal }) => {
+        if (!id) return null;
+        const user = await prisma.user.findUnique({
+            where: { id: id.toString() }
+        });
+        if (!user) return null;
+        if (selectVal && selectVal.includes('-password')) {
+            delete user.password;
+        }
+        return new UserModelInstance(user);
+    });
+};
+
+User.find = function(filter = {}) {
+    return createQueryWrapper(async () => {
+        const users = await prisma.user.findMany();
+        return users.map(u => new UserModelInstance(u));
+    });
+};
+
+User.deleteMany = async function() {
+    return await prisma.user.deleteMany({});
+};
 
 export default User;

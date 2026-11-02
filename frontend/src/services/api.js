@@ -1,7 +1,16 @@
 import axios from 'axios';
 
+// If the app is loaded over HTTPS, prevent insecure HTTP calls by routing through /api rewrite
+const getBaseUrl = () => {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && envUrl?.startsWith('http://')) {
+        return '/api';
+    }
+    return envUrl || '/api';
+};
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+    baseURL: getBaseUrl(),
     withCredentials: true, // Important for sending/receiving cookies (JWT)
 });
 

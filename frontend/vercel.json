@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "http://3.111.166.41/api/:match*"
+    },
+    {
+      "source": "/uploads/:match*",
+      "destination": "http://3.111.166.41/uploads/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

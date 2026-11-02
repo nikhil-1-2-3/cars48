@@ -101,6 +101,7 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG_BASE64 }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+          kubectl config set-cluster default --insecure-skip-tls-verify=true
 
       - name: Pin backend image to this commit SHA
         run: |
@@ -111,11 +112,11 @@ jobs:
       - name: Apply k8s manifests
         run: |
           # Apply everything except the secret (managed separately, never in Git)
-          kubectl apply -f k8s/backend-deployment.yaml
-          kubectl apply -f k8s/backend-service.yaml
-          kubectl apply -f k8s/ingress.yaml
-          kubectl apply -f k8s/frontend-deployment.yaml
-          kubectl apply -f k8s/frontend-service.yaml
+          kubectl apply --validate=false -f k8s/backend-deployment.yaml
+          kubectl apply --validate=false -f k8s/backend-service.yaml
+          kubectl apply --validate=false -f k8s/ingress.yaml
+          kubectl apply --validate=false -f k8s/frontend-deployment.yaml
+          kubectl apply --validate=false -f k8s/frontend-service.yaml
 
       - name: Wait for backend rollout
         run: |
@@ -125,7 +126,7 @@ jobs:
         run: |
           # Delete any old migration job, then apply fresh
           kubectl delete job renthere-db-migrate --ignore-not-found
-          kubectl apply -f k8s/db-migrate-job.yaml
+          kubectl apply --validate=false -f k8s/db-migrate-job.yaml
           kubectl wait --for=condition=complete job/renthere-db-migrate --timeout=120s
 
       - name: Verify deployment

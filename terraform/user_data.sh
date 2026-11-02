@@ -22,7 +22,8 @@ systemctl start docker
 
 # ── k3s (lightweight Kubernetes) ─────────────────────────────
 echo "==> Installing k3s"
-curl -sfL https://get.k3s.io | sh -
+PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+curl -sfL https://get.k3s.io | sh -s - --tls-san "$PUBLIC_IP"
 
 # Make kubeconfig readable by ubuntu user
 chmod 644 /etc/rancher/k3s/k3s.yaml
@@ -31,7 +32,6 @@ cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
 chown ubuntu:ubuntu /home/ubuntu/.kube/config
 
 # Replace 127.0.0.1 with the EC2 public IP so remote kubectl works
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 sed -i "s/127.0.0.1/$PUBLIC_IP/g" /home/ubuntu/.kube/config
 
 # ── kubectl convenience for ubuntu user ──────────────────────
